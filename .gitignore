@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Databricks / IDE local files
+.databricks/
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
