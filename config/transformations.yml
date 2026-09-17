@@ -1,0 +1,9 @@
+transformations:
+
+  # Does nothing. It exists mainly to make intent explicit.
+  none: {}
+
+  # Phase-one example transformation.
+  add_column:
+    column_name: midas_source
+    value: copied_by_midas
