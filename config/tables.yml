@@ -1,0 +1,35 @@
+tables:
+  - name: customers
+    enabled: true
+
+    # Any table Spark can resolve through the metastore / Unity Catalog.
+    source: source_catalog.source_schema.customers
+
+    # Where Midas will create the copied "gold" table.
+    destination: my_catalog.my_schema.gold_customers
+
+    # Optional.
+    # Omit this section, or use [], to copy every source column.
+    columns:
+      - customer_id
+      - customer_name
+      - created_at
+
+    # Phase-one transformations:
+    #   none
+    #   add_column
+    transformation: add_column
+
+    # Starter behavior. Later you may support append or merge.
+    write_mode: overwrite
+
+  - name: orders
+    enabled: true
+    source: source_catalog.source_schema.orders
+    destination: my_catalog.my_schema.gold_orders
+
+    # Empty means "all columns".
+    columns: []
+
+    transformation: none
+    write_mode: overwrite
