@@ -15,6 +15,7 @@ The first version is intentionally simple:
   - add one literal column
 - Write the result as a Delta table
 - Configure the behavior with YAML
+- Validate that configuration with Pydantic before Spark does any work
 - Run the same notebook with parameters
 
 This is meant to be easy to understand and extend, not a complete data engineering framework.
@@ -62,6 +63,39 @@ transformations:
     column_name: midas_source
     value: copied_by_midas
 ```
+
+## Why Pydantic is here
+
+Midas deliberately keeps YAML as the human-facing configuration format and uses Pydantic as the validation layer.
+
+The flow is:
+
+```text
+YAML file
+   ↓ PyYAML parses syntax
+Python dictionaries / lists
+   ↓ Pydantic validates the Midas contract
+typed TableConfig / TransformationsConfig objects
+   ↓
+PySpark execution
+```
+
+That separation matters:
+
+- **PyYAML** answers: "Is this valid YAML?"
+- **Pydantic** answers: "Is this valid Midas configuration?"
+
+For example, Pydantic now catches problems before Spark reads or writes data:
+
+- missing required fields such as `source` or `destination`
+- misspelled/unknown keys because the models use `extra="forbid"`
+- unsupported transformation names
+- unsupported write modes
+- wrong shapes or types for table and transformation settings
+
+The notebook therefore gets to use typed objects such as `table_cfg.source` and `table_cfg.columns` rather than repeatedly validating raw dictionary keys during execution.
+
+This is intentionally still a small design: the Pydantic models live in the teaching notebook for now so the full parse → validate → execute path is visible in one place. They can move into a normal Python module when repeated use justifies that abstraction.
 
 ## Running the notebook
 
@@ -116,6 +150,7 @@ Before adding more features, make sure you are comfortable with these pieces ind
 5. Delta `.saveAsTable(...)`
 6. Databricks widgets
 7. Reading YAML into Python dictionaries
+8. Validating those dictionaries with Pydantic models
 
 Once those pieces feel obvious, the framework can grow naturally.
 
@@ -156,7 +191,7 @@ Other useful next steps:
 - incremental loads
 - merge/upsert support
 - dependency ordering
-- YAML schema validation
+- richer Pydantic validation and cross-field rules
 - Databricks Workflows orchestration
 
 ## A useful design rule
