@@ -14,12 +14,12 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install pyyaml "pydantic>=2,<3"
+# MAGIC %pip install "pyyaml>=6,<7" "pydantic>=2,<3"
 
 # COMMAND ----------
 
-# Restart Python after installing libraries if Databricks asks you to.
-# dbutils.library.restartPython()
+# Restart after notebook-scoped installs so the requested package versions are active.
+dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -42,8 +42,8 @@ from pyspark.sql import functions as F
 # COMMAND ----------
 
 dbutils.widgets.text("table_name", "")
-dbutils.widgets.text("tables_config_path", "/Workspace/Repos/<you>/midas-db/config/tables.yml")
-dbutils.widgets.text("transform_config_path", "/Workspace/Repos/<you>/midas-db/config/transformations.yml")
+dbutils.widgets.text("tables_config_path", "../config/tables.yml")
+dbutils.widgets.text("transform_config_path", "../config/transformations.yml")
 
 table_name = dbutils.widgets.get("table_name").strip()
 tables_config_path = dbutils.widgets.get("tables_config_path")
@@ -67,6 +67,9 @@ print(f"Transform config: {transform_config_path}")
 # MAGIC Pydantic owns the Midas contract: required fields, allowed values, defaults, and types.
 # MAGIC
 # MAGIC For this starter version, we read YAML directly from the Databricks workspace filesystem.
+# MAGIC On Databricks Runtime 14+, the notebook directory is the default working directory,
+# MAGIC so the default `../config/...` paths work whether the Git folder lives under
+# MAGIC `/Workspace/Users/...` or the legacy `/Workspace/Repos/...` location.
 
 # COMMAND ----------
 
