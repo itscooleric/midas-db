@@ -15,6 +15,7 @@ The first version is intentionally simple:
   - add one literal column
 - Write the result as a Delta table
 - Configure the behavior with YAML
+- Validate that configuration with Pydantic before Spark does any work
 - Run the same notebook with parameters
 
 This is meant to be easy to understand and extend, not a complete data engineering framework.
@@ -63,6 +64,39 @@ transformations:
     value: copied_by_midas
 ```
 
+## Why Pydantic is here
+
+Midas deliberately keeps YAML as the human-facing configuration format and uses Pydantic as the validation layer.
+
+The flow is:
+
+```text
+YAML file
+   ↓ PyYAML parses syntax
+Python dictionaries / lists
+   ↓ Pydantic validates the Midas contract
+typed TableConfig / TransformationsConfig objects
+   ↓
+PySpark execution
+```
+
+That separation matters:
+
+- **PyYAML** answers: "Is this valid YAML?"
+- **Pydantic** answers: "Is this valid Midas configuration?"
+
+For example, Pydantic now catches problems before Spark reads or writes data:
+
+- missing required fields such as `source` or `destination`
+- misspelled/unknown keys because the models use `extra="forbid"`
+- unsupported transformation names
+- unsupported write modes
+- wrong shapes or types for table and transformation settings
+
+The notebook therefore gets to use typed objects such as `table_cfg.source` and `table_cfg.columns` rather than repeatedly validating raw dictionary keys during execution.
+
+This is intentionally still a small design: the Pydantic models live in the teaching notebook for now so the full parse → validate → execute path is visible in one place. They can move into a normal Python module when repeated use justifies that abstraction.
+
 ## Running the notebook
 
 The notebook defines three Databricks widgets:
@@ -82,6 +116,39 @@ transform_config_path = /Workspace/Repos/<you>/midas-db/config/transformations.y
 ```
 
 If `table_name` is blank, the demo notebook runs the first enabled table definition.
+
+
+## Tomorrow: speed-run checklist
+
+Use this before treating Phase 1 as validated.
+
+1. In Databricks, create or open a Git folder for `itscooleric/midas-db`.
+2. Check out `feature/pydantic-config-validation`.
+3. Open `notebooks/midas_copy.py`.
+4. Attach a cluster/runtime with Unity Catalog access to the source and destination catalogs you intend to test.
+5. Run the notebook once with the default relative config paths:
+   - `../config/tables.yml`
+   - `../config/transformations.yml`
+6. Replace the placeholder source/destination table names in `config/tables.yml` with disposable test tables that actually exist in your workspace.
+7. Verify the happy path:
+   - source table resolves;
+   - selected columns exist;
+   - `add_column` writes the expected literal column;
+   - destination Delta table is created;
+   - source and destination row counts match.
+8. Verify two failure paths before merging PR #1:
+   - misspell `destination` as `destnation` and confirm Pydantic fails before Spark execution;
+   - set `transformation: unsupported_transform` and confirm validation rejects it.
+9. Restore valid configuration and rerun successfully.
+10. Merge PR #1 only after that Databricks runtime check passes.
+
+### Expected stopping points
+
+- If package installation succeeds but imports still show an old version, rerun from the top after the notebook-scoped Python restart.
+- If a config path is not found, inspect the notebook working directory with `os.getcwd()`; on Databricks Runtime 14+ it should normally be the notebook directory in the Git folder.
+- If `spark.read.table(...)` fails, treat that as an environment/catalog permission problem before changing Midas code.
+- If `.saveAsTable(...)` fails, verify the destination catalog/schema exists and is writable.
+- Keep the test destination disposable because Phase 1 intentionally uses `overwrite`.
 
 ## How the notebook works
 
@@ -116,6 +183,7 @@ Before adding more features, make sure you are comfortable with these pieces ind
 5. Delta `.saveAsTable(...)`
 6. Databricks widgets
 7. Reading YAML into Python dictionaries
+8. Validating those dictionaries with Pydantic models
 
 Once those pieces feel obvious, the framework can grow naturally.
 
@@ -156,7 +224,7 @@ Other useful next steps:
 - incremental loads
 - merge/upsert support
 - dependency ordering
-- YAML schema validation
+- richer Pydantic validation and cross-field rules
 - Databricks Workflows orchestration
 
 ## A useful design rule
