@@ -117,6 +117,39 @@ transform_config_path = /Workspace/Repos/<you>/midas-db/config/transformations.y
 
 If `table_name` is blank, the demo notebook runs the first enabled table definition.
 
+
+## Tomorrow: speed-run checklist
+
+Use this before treating Phase 1 as validated.
+
+1. In Databricks, create or open a Git folder for `itscooleric/midas-db`.
+2. Check out `feature/pydantic-config-validation`.
+3. Open `notebooks/midas_copy.py`.
+4. Attach a cluster/runtime with Unity Catalog access to the source and destination catalogs you intend to test.
+5. Run the notebook once with the default relative config paths:
+   - `../config/tables.yml`
+   - `../config/transformations.yml`
+6. Replace the placeholder source/destination table names in `config/tables.yml` with disposable test tables that actually exist in your workspace.
+7. Verify the happy path:
+   - source table resolves;
+   - selected columns exist;
+   - `add_column` writes the expected literal column;
+   - destination Delta table is created;
+   - source and destination row counts match.
+8. Verify two failure paths before merging PR #1:
+   - misspell `destination` as `destnation` and confirm Pydantic fails before Spark execution;
+   - set `transformation: unsupported_transform` and confirm validation rejects it.
+9. Restore valid configuration and rerun successfully.
+10. Merge PR #1 only after that Databricks runtime check passes.
+
+### Expected stopping points
+
+- If package installation succeeds but imports still show an old version, rerun from the top after the notebook-scoped Python restart.
+- If a config path is not found, inspect the notebook working directory with `os.getcwd()`; on Databricks Runtime 14+ it should normally be the notebook directory in the Git folder.
+- If `spark.read.table(...)` fails, treat that as an environment/catalog permission problem before changing Midas code.
+- If `.saveAsTable(...)` fails, verify the destination catalog/schema exists and is writable.
+- Keep the test destination disposable because Phase 1 intentionally uses `overwrite`.
+
 ## How the notebook works
 
 Conceptually, Midas phase one is only:
